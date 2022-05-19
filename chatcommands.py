@@ -490,6 +490,11 @@ def do_blacklist(blacklist_type, msg, force=False):
         else:
             is_phone = False
 
+        existing_pr = GitManager.pattern_already_proposed(pattern)
+        
+        if not existing_pr is False:
+            rasie CmdException(existing_pr + other_issues_text + append_force_to_do)
+
         concretized_pattern = get_test_text_from_regex(pattern)
 
         for username in False, True:
