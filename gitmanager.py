@@ -423,7 +423,7 @@ class GitManager:
                 diff_text = requests.get(pr_diff[0]).text
                 line_index = diff_text.rfind('\n+') + 2
                 line_changed = diff_text[line_index:]
-                if line_changed.find(pattern):
+                if line_changed.find(pattern) > -1:
                     pr_number = pr_diff[1][-1]
                     if code_permissions:
                         return "That pattern is already proposed in [PR #{}]({}). " \
