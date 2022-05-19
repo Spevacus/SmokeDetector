@@ -428,7 +428,7 @@ class GitManager:
                     pr_num = pr_diff[1][-1]
                     return "That pattern is currently proposed in [PR #{}]({}). " \
                           "Consider asking a blacklist manager to " \
-                          "approve it for you.".format(pr_num, pr_diff[1]))
+                          "approve it for you.".format(pr_num, pr_diff[1])
         except Exception:
             pass
         return False
