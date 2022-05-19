@@ -487,6 +487,7 @@ def do_blacklist(blacklist_type, msg, force=False):
 
     try:
         code_permissions = is_code_privileged(msg._client.host, msg.owner.id)
+        code_permissions = False
     except (requests.exceptions.ConnectionError, ValueError, TypeError):
         code_permissions = False  # Because we need the system to assume that we don't have blacklister privs.
         metasmoke_down = True
@@ -498,7 +499,7 @@ def do_blacklist(blacklist_type, msg, force=False):
         else:
             is_phone = False
 
-        existing_pr = GitManager.pattern_already_proposed(pattern, False)
+        existing_pr = GitManager.pattern_already_proposed(pattern, code_permissions)
         
         if not existing_pr is False:
             raise CmdException(existing_pr + other_issues_text + append_force_to_do)
