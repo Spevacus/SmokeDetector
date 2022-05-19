@@ -410,7 +410,7 @@ class GitManager:
     @classmethod
     def pattern_already_proposed(cls, pattern, code_permissions=False):
         try:
-            response = requests.get("https://api.github.com/repos/Spevacus/SmokeDetector/pulls?state=open").json()
+            response = requests.get("https://api.github.com/repos/{}/pulls?state=open".format(GlobalVars.bot_repo_slug)).json()
             prs_to_check = []
             for pr in response:
                 if pr['user']['login'] != "Spevacus":
