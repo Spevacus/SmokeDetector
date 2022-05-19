@@ -408,11 +408,10 @@ class GitManager:
         raise RuntimeError("Closing pull request #{} failed. Manual operations required.".format(pr_id))
 
     @classmethod
-    def pattern_already_proposed(cls, pattern=""):
+    def pattern_already_proposed(cls, pattern, code_permissions=False):
         try:
             response = requests.get("https://api.github.com/repos/Spevacus/SmokeDetector/pulls?state=open").json()
             prs_to_check = []
-            pattern = "800-222-3333"
             for pr in response:
                 if pr['user']['login'] != "Spevacus":
                     continue
@@ -421,14 +420,19 @@ class GitManager:
                 else:
                     prs_to_check.append([pr['diff_url'], pr['html_url']])
             for pr_diff in prs_to_check:
-                response = requests.get(pr_diff[0]).text
-                last_index = response.rfind('\n+') + 2
-                line_changed = response[last_index:]
+                diff_text = requests.get(pr_diff[0]).text
+                line_index = diff_text.rfind('\n+') + 2
+                line_changed = diff_text[line_index:]
                 if line_changed.find(pattern):
-                    pr_num = pr_diff[1][-1]
-                    return "That pattern is currently proposed in [PR #{}]({}). " \
+                    pr_number = pr_diff[1][-1]
+                    if code_permissions:
+                        return "That pattern is already proposed in [PR #{}]({}). " \
+                          "Consider approving that PR " \
+                          "instead.".format(pr_number, pr_diff[1])
+                    else:
+                        return "That pattern is already proposed in [PR #{}]({}). " \
                           "Consider asking a blacklist manager to " \
-                          "approve it for you.".format(pr_num, pr_diff[1])
+                          "approve it for you.".format(pr_number, pr_diff[1])
         except Exception:
             pass
         return False
