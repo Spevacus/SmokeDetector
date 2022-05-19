@@ -413,7 +413,7 @@ class GitManager:
             response = requests.get("https://api.github.com/repos/{}/pulls?state=open".format(GlobalVars.bot_repo_slug)).json()
             prs_to_check = []
             for pr in response:
-                if pr['user']['login'] != "Spevacus":
+                if pr['user']['login'] != GlobalVars.git_name:
                     continue
                 if "<!-- METASMOKE-BLACKLIST" not in pr['body']:
                     continue
