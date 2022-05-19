@@ -408,7 +408,7 @@ class GitManager:
         raise RuntimeError("Closing pull request #{} failed. Manual operations required.".format(pr_id))
 
     @classmethod
-    def pattern_already_proposed(cls, pattern)
+    def pattern_already_proposed(cls, pattern="")
         try:
             response = requests.get("https://api.github.com/repos/Spevacus/SmokeDetector/pulls?state=open").json()
             prs_to_check = []
