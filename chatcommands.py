@@ -498,7 +498,7 @@ def do_blacklist(blacklist_type, msg, force=False):
         else:
             is_phone = False
 
-        existing_pr = GitManager.pattern_already_proposed(pattern, code_permissions)
+        existing_pr = GitManager.pattern_already_proposed(pattern, False)
         
         if not existing_pr is False:
             raise CmdException(existing_pr + other_issues_text + append_force_to_do)
