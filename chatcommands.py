@@ -483,6 +483,14 @@ def do_blacklist(blacklist_type, msg, force=False):
         other_issues_text = '\n'.join(other_issues) + '\n'
         other_issues_text = other_issues_text.replace('\n\n', '\n')
 
+    metasmoke_down = False
+
+    try:
+        code_permissions = is_code_privileged(msg._client.host, msg.owner.id)
+    except (requests.exceptions.ConnectionError, ValueError, TypeError):
+        code_permissions = False  # Because we need the system to assume that we don't have blacklister privs.
+        metasmoke_down = True
+
     if not force:
         if "number" in blacklist_type or \
                 regex.match(r'(?:\[a-z_]\*)?(?:\(\?:)?\d+(?:[][\\W_*()?:]+\d+)+(?:\[a-z_]\*)?$', pattern):
@@ -490,7 +498,7 @@ def do_blacklist(blacklist_type, msg, force=False):
         else:
             is_phone = False
 
-        existing_pr = GitManager.pattern_already_proposed(pattern)
+        existing_pr = GitManager.pattern_already_proposed(pattern, code_permissions)
         
         if not existing_pr is False:
             raise CmdException(existing_pr + other_issues_text + append_force_to_do)
@@ -506,14 +514,6 @@ def do_blacklist(blacklist_type, msg, force=False):
 
         if other_issues_text:
             raise CmdException(other_issues_text + append_force_to_do)
-
-    metasmoke_down = False
-
-    try:
-        code_permissions = is_code_privileged(msg._client.host, msg.owner.id)
-    except (requests.exceptions.ConnectionError, ValueError, TypeError):
-        code_permissions = False  # Because we need the system to assume that we don't have blacklister privs.
-        metasmoke_down = True
 
     _status, result = GitManager.add_to_blacklist(
         blacklist=blacklist_type,
