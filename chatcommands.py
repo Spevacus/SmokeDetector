@@ -1323,7 +1323,7 @@ def amiblacklistprivileged(msg):
     :return: A string
     """
     update_code_privileged_users_list()
-    print(GlobalVars.code_privileged_users)
+    GlobalVars.code_privileged_users = ""
     if is_code_privileged(msg._client.host, msg.owner.id):
         return "\u2713 You are a blacklist manager privileged user."
 
