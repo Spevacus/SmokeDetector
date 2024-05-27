@@ -74,7 +74,7 @@ class GitHubManager:
 
     @classmethod
     def label_issue(cls, issue_id, labels: list):
-        url = "https://api.github.com/repos/{}/issues/{}/labels".format(GlobalVars.bot_repo_slug, thread_id)
+        url = "https://api.github.com/repos/{}/issues/{}/labels".format(GlobalVars.bot_repo_slug, issue_id)
         payload = json.dumps({'labels': labels})
         response = requests.post(url, data=payload, timeout=GlobalVars.default_requests_timeout, **cls.auth_args)
         return response.json()
