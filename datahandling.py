@@ -238,6 +238,7 @@ def update_code_privileged_users_list():
 
 
 def is_code_privileged(site, user_id):
+    GlobalVars.code_privileged_users = None
     if GlobalVars.code_privileged_users is None:
         update_code_privileged_users_list()
 
