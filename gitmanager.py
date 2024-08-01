@@ -191,6 +191,7 @@ class GitManager:
                 git.push(origin_or_auth, "master")
                 git.branch('-D', branch)  # Delete the branch in the local git tree since we're done with it.
             else:
+                print(origin_or_auth)
                 git.push(origin_or_auth, branch)
                 git.checkout("master")
 
@@ -348,7 +349,7 @@ class GitManager:
         if not response:
             raise ConnectionError("Cannot connect to GitHub API")
         pr_info = response.json()
-        if pr_info["user"]["login"] != "SmokeDetector":
+        if pr_info["user"]["login"] != "Spevacus":
             raise ValueError("PR #{} is not created by me, so I can't approve it.".format(pr_id))
         if "<!-- METASMOKE-BLACKLIST" not in pr_info["body"]:
             raise ValueError("PR description is malformed. Blame a developer.")
@@ -389,7 +390,7 @@ class GitManager:
         if not response:
             raise ConnectionError("Cannot connect to GitHub API")
         pr_info = response.json()
-        if pr_info["user"]["login"] != "SmokeDetector":
+        if pr_info["user"]["login"] != "Spevacus":
             raise ValueError("PR #{} is not created by me, so I can't reject it.".format(pr_id))
         if "<!-- METASMOKE-BLACKLIST" not in pr_info["body"]:
             raise ValueError("PR description is malformed. Blame a developer.")
