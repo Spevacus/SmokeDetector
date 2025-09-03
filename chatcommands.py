@@ -30,7 +30,9 @@ from ast import literal_eval
 import regex
 from helpers import exit_mode, only_blacklists_changed, only_modules_changed, log, expand_shorthand_link, \
     reload_modules, chunk_list, remove_regex_comments, regex_compile_no_cache, log_current_exception, \
-    get_se_api_default_params, get_se_api_default_params_questions_answers_posts_add_site, get_se_api_url_for_route
+    get_se_api_default_params, get_se_api_default_params_questions_answers_posts_add_site, get_se_api_url_for_route, \
+    get_bookended_keyword_regex_text_from_entries, get_non_bookended_keyword_regex_text_from_entries, \
+    keyword_bookend_regex_text, keyword_non_bookend_regex_text
 from classes import Post
 from classes.feedback import *
 from classes.dns import dns_resolve
@@ -263,13 +265,13 @@ def check_blacklist(string_to_test, is_username, is_watchlist, is_phone):
         filter_out.append("potentially bad keyword")
     # Ignore "Mostly non-latin body/answer" for phone number watches
     if is_phone:
-        filter_out.extend(["mostly non-latin", "phone number detected", "messaging number detected"])
+        filter_out.extend(["phone number detected", "messaging number detected"])
 
     # Filter out some reasons which commonly find the things added to the watch/blacklists
     # If these are detected, then the user should almost always -force. Showing them gets people too used
     # to just automatically using -force. Maybe a better UX strategy would be to have other reasons shown in bold.
     filter_out.extend(["pattern-matching email", "pattern-matching website", "bad keyword with email",
-                       "bad ns for domain", "bad ip for hostname", "mostly punctuation marks"])
+                       "bad ns for domain", "bad ip for hostname", "mostly punctuation marks", "mostly non-latin"])
     if filter_out:
         reasons = [reason for reason in reasons if all([x not in reason.lower() for x in filter_out])]
 
@@ -676,9 +678,8 @@ def approve(msg, pr_id):
             msg._client.host, msg.owner.id)
         comment = "[Approved]({}) by [{}]({}) in {}\n\n![Approved with SmokeyApprove]({})".format(
             message_url, msg.owner.name, chat_user_profile_link, msg.room.name,
-            # The image of (blacklisters|approved) from PullApprove
-            "https://camo.githubusercontent.com/7d7689a88a6788541a0a87c6605c4fdc2475569f/68747470733a2f2f696d672e"
-            "736869656c64732e696f2f62616467652f626c61636b6c6973746572732d617070726f7665642d627269676874677265656e")
+            # The image of (blacklisters|approved) from Shields.io
+            "https://img.shields.io/badge/blacklisters-approved-green")
         message = GitManager.merge_pull_request(pr_id, comment)
         if only_blacklists_changed(GitManager.get_local_diff()):
             try:
@@ -717,20 +718,22 @@ def reject(msg, args, alias_used="reject"):
         reason = ''
     force = alias_used.split("-")[-1] == "force"
     code_permissions = is_code_privileged(msg._client.host, msg.owner.id)
-    pr_object = GitHubManager.get_pull_request(pr_id)
-    pr_body = pr_object.json()['body']
-    pr_author_id = regex.search(r"(?<=\/users\/)\d+", pr_body).group(0)
-    self_reject = int(pr_author_id) == int(msg.owner.id)
+    self_reject = False
+    try:
+        pr_json = GitHubManager.get_pull_request(pr_id).json()
+        if 'body' in pr_json:
+            pr_authored_by_rejector = regex.search(r"(?<=/users/)" + str(msg.owner.id),
+                                                   pr_json['body'])
+            self_reject = pr_authored_by_rejector is not None
+    except Exception as e:
+        raise CmdException(str(e))
     if not code_permissions and not self_reject:
         raise CmdException("You need blacklist manager privileges to reject pull requests "
                            "that aren't created by you.")
     if len(reason) < 20 and not force:
         raise CmdException("Please provide an adequate reason for rejection that is at least"
                            " 20 characters long. Use `-force` to ignore this requirement.")
-    rejected_image = "https://camo.githubusercontent.com/" \
-                     "77d8d14b9016e415d36453f27ccbe06d47ef5ae2/68747470733a" \
-                     "2f2f7261737465722e736869656c64732e696f2f62616467652f626c6" \
-                     "1636b6c6973746572732d72656a65637465642d7265642e706e67"
+    rejected_image = "https://img.shields.io/badge/blacklisters-rejected-red"
     message_url = "https://chat.{}/transcript/{}?m={}".format(msg._client.host, msg.room.id, msg.id)
     chat_user_profile_link = "https://chat.{}/users/{}".format(msg._client.host, msg.owner.id)
     rejected_by_text = "[Rejected]({}) by [{}]({}) in {}.".format(message_url, msg.owner.name,
@@ -1576,8 +1579,11 @@ def test(content, alias_used="test"):
 
 
 def bisect_regex(test_text, regexes, bookend=True, timeout=None, force_log_time=False):
-    regex_to_format = r"(?is)(?:^|\b|(?w:\b))(?:{})(?:$|\b|(?w:\b))" if bookend else r"(?i)(?:{})"
-    formatted_regex = regex_to_format.format("|".join([r for r, i in regexes]))
+    entries = [r for r, i in regexes]
+    if bookend:
+        formatted_regex = get_bookended_keyword_regex_text_from_entries(entries)
+    else:
+        formatted_regex = get_non_bookended_keyword_regex_text_from_entries(entries)
     start_time = time.time()
     compiled = regex_compile_no_cache(formatted_regex, city=findspam.city_list, ignore_unused=True)
     match = compiled.search(test_text)
@@ -1606,13 +1612,15 @@ def bisect_regex(test_text, regexes, bookend=True, timeout=None, force_log_time=
 
 
 def bisect_regex_one_by_one(test_text, regexes, bookend=True, timeout=None):
-    regex_to_format = r"(?is)(?:^|\b|(?w:\b))(?:{})(?:$|\b|(?w:\b))" if bookend else r"(?i)(?:{})"
     matches = []
     timeouts = []
     for expresion in regexes:
         start_time = time.time()
-        compiled = regex_compile_no_cache(regex_to_format.format(expresion[0]), city=findspam.city_list,
-                                          ignore_unused=True)
+        if bookend:
+            formatted_regex = keyword_bookend_regex_text(expresion[0])
+        else:
+            formatted_regex = keyword_non_bookend_regex_text(expresion[0])
+        compiled = regex_compile_no_cache(formatted_regex, city=findspam.city_list, ignore_unused=True)
         match = compiled.search(test_text)
         seconds = time.time() - start_time
         timed_out = timeout is not None and seconds > timeout
@@ -2067,7 +2075,7 @@ def invite(msg, room_id, roles):
 # --- Post Responses --- #
 # noinspection PyIncorrectDocstring
 @command(str, whole_msg=True, privileged=False, give_name=True,
-         aliases=["scan", "scan-force", "report-force", "report-direct"])
+         aliases=["scan", "scan-force", "report-force", "report-direct", "scan-time", "scan-force-time"])
 def report(msg, args, alias_used="report"):
     """
     Report a post (or posts)
@@ -2086,6 +2094,10 @@ def report(msg, args, alias_used="report"):
                            "one go.".format(alias_used, wait))
 
     alias_used = alias_used or "report"
+
+    is_timed = "-time" in alias_used
+    alias_used = alias_used.replace("-time", "")
+    start_time = time.time()
 
     argsraw = args.split(' "', 1)
     urls = argsraw[0].split(' ')
@@ -2114,6 +2126,8 @@ def report(msg, args, alias_used="report"):
     if output:
         if 1 < len(urls) > output.count("\n") + 1:
             add_or_update_multiple_reporter(msg.owner.id, msg._client.host, time.time())
+        if is_timed:
+            output += "\nScanning took {} seconds.".format(round(time.time() - start_time, 3))
         return output
 
 
